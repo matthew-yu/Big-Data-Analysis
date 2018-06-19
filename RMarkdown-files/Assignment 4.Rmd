@@ -1,0 +1,82 @@
+---
+title: "Assignment 4 - The case of Overfitting"
+author: "Matthew Yu"
+date: "2017/4"
+output:
+  pdf_document:
+    includes:
+      in_header: header.tex
+    keep_tex: yes
+    latex_engine: xelatex
+  html_document: default
+---
+
+
+### 仿照上課講義的Pima案例
+
+    1. 利用iris資料庫，進行 5-fold 交叉分析。
+    
+    2. 對每1個fold，計算正確率。
+    
+    3. 對這5個folds，計算正確率的平均數與標準差。
+    
+    4. 輸出結果必須包含：每個fold所使用的cp、葉節點個數、正確度。5個folds正確度的平均數與標準差。
+
+針對於這次的作業，我希望能夠讓此流程應用更加廣泛，因此設計一函數。此函數`Generic_cv`的參數有三，分別為data.frame型別的資料集、資料集內Response的變數名稱字串、以及交叉驗證的折數。輸出結果包含:
+
+  * 	最適cp、葉節點數、和正確率的報表
+  * 	正確率的平均表現與標準差
+  * 	個別run使用最適cp參數所得的分類樹圖數張
+
+#### 1. 函數內容
+```{r}
+library(rpart)
+library(MASS)
+data(iris)
+Generic_cv <- function(input, response, nfold){
+  if(nfold==1){
+    print("number of folds should be greater than 1")
+  }
+  else{
+  set.seed(100)
+  fold.size <- nrow(input)%/%nfold
+  order <- sample(c(1:nrow(input)), nrow(input), replace=F)
+  fold.index <- matrix(0, fold.size, nfold)
+  Answer.table <- matrix(0,nfold,3)
+  colnames(Answer.table) <- c("optimal cp", "nodes", "accuracy")
+  for(i in 1:nfold){
+    fold.index[,i] <- order[(fold.size*(i-1)+1):(fold.size*i)]
+  }
+  for(i in 1:nfold){
+    train <- input[c(fold.index[,-(nfold-i+1)]),]
+    test <- input[c(fold.index[,(nfold-i+1)]),]
+    train.tree <- rpart(train[,which(colnames(input)==response)]~.,data=train[,-which(colnames(input)==response)])
+    cpt <- printcp(train.tree)
+    Answer.table[i,1] <- cpt[which.min(cpt[,4]),1]
+    Answer.table[i,2] <- cpt[which.min(cpt[,4]),2]+1
+    op.tree <- prune(train.tree, cp=cpt[which.min(cpt[,4]),1])
+    data.pre <- predict(op.tree, test, type="class")
+    plot(op.tree, margin=0.05, main=paste("Run No.",i))
+    text(op.tree, use.n=T, cex=0.75)
+    par(ask=T)
+    Answer.table[i,3] <- sum(diag(table(test[,which(colnames(input)==response)], data.pre)))/nrow(test)
+  }
+  cat("\n","\nresponse = ",response,"\n")
+  cat("number of folds = ",nfold,"\n")
+  cat("Mean accuracy of the ",nfold,"folds: ",mean(Answer.table[,3]),"\n")
+  cat("Standard deviation of the ",nfold,"fold accuracies: ",sd(Answer.table[,3]),"\n")
+  cat("\nSummary of the ",nfold,"runs: \n")
+  return(Answer.table)
+  }
+}
+```
+
+
+#### 2. 以Generic_cv(iris, “Species”, 5)為例，可以得結果報表與圖如下:
+
+此外，函數設計上亦能夠適用多種不同資料集與折數
+```{r}
+Generic_cv(iris, "Species", 5)
+Generic_cv(iris, "Species", 10)
+Generic_cv(Pima.tr, "type", 5)
+```

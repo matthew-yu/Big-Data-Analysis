@@ -1,0 +1,91 @@
+---
+title: "Assignment 5 - Evaluating Model Performances"
+author: "Matthew Yu"
+date: "2017/5"
+output:
+  pdf_document:
+    includes:
+      in_header: header.tex
+    keep_tex: yes
+    latex_engine: xelatex
+  html_document: default
+---
+
+
+### 1. 補強上課的範例程式，可以算出以上課講義「Lecture 8 Visualization Model Performance」的第52頁上，「Precision = 1.0, Recall = 0.2」兩個數值。
+
+針對此題，我設計出能夠比較不同種方法(共有Classification Tree, kNN 以及 SVM)的函數，結果除了畫出含有三條Lift Curve的圖以外，也將三種方法各自的Precision 以及 Recall 計算出，列在結果。\
+\
+函數的第一部份`Pre_Re`，在讀入任一方法所得之Confusion Matrix 後將兩個值算出。
+```{r}
+library(ROSE)
+library(rpart)
+library(ROCR)
+library(class)
+library(e1071)
+data(hacide)
+Pre_Re <- function(pred, table, test, response, Positive){
+  if(ncol(table)==2){
+    Precision <- sum(pred==test[,which(colnames(test)==response)]&pred==Positive)/(sum(pred==test[,which(colnames(test)==response)]&pred==Positive)+sum(test[,which(colnames(test)==response)]!=Positive&pred==Positive))
+    Recall <- sum(pred==test[,which(colnames(test)==response)]&pred==Positive)/(sum(pred==test[,which(colnames(test)==response)]&pred==Positive)+sum(test[,which(colnames(test)==response)]==Positive&pred!=Positive))
+    Answer <- c(Precision, Recall)
+  }else{
+    if(colnames(table)[1]!=Positive){
+      Answer <- c(0,0)
+    }
+  }
+  return(Answer)
+}
+```
+
+
+剩餘部份`Generic_bin_plots`在過程中呼叫`Pre_Re`，並司職繪圖以及列出結果。
+```{r}
+Generic_bin_plots <- function(train, test, response, Positive){
+  if(length(unique(train[,which(colnames(train)==response)]))>2){
+    print("This function is only meant for binary classifications")
+  }
+  else{
+    TREEmod <- rpart(train[,which(colnames(train)==response)]~.,data=train[,-which(colnames(train)==response)])
+    SVMmod <- svm(train[,which(colnames(train)==response)]~.,data=train[,-which(colnames(train)==response)])
+    TREEpred <- predict(TREEmod, newdata=test, type="class")
+    KNNpred <- knn(train, test, cl=factor(train[,which(colnames(train)==response)]))
+    SVMpred <- predict(SVMmod, newdata=test, type="class")
+    TREEtable <- table(test[,which(colnames(test)==response)], TREEpred)
+    KNNtable <- table(test[,which(colnames(test)==response)], KNNpred)
+    SVMtable <- table(test[,which(colnames(test)==response)], SVMpred)
+    T.Answer <- Pre_Re(TREEpred, TREEtable, test=test, response=response, Positive=Positive)
+    K.Answer <- Pre_Re(KNNpred, KNNtable, test=test, response=response, Positive=Positive)
+    S.Answer <- Pre_Re(SVMpred, SVMtable, test=test, response=response, Positive=Positive)
+    pre.T <- prediction(as.numeric(TREEpred),
+                        as.numeric(test[,which(colnames(test)==response)]))
+    pre.K <- prediction(as.numeric(KNNpred),
+                        as.numeric(test[,which(colnames(test)==response)]))
+    pre.S <- prediction(as.numeric(SVMpred),
+                        as.numeric(test[,which(colnames(test)==response)]))
+    plot(performance(pre.T, "lift", "rpp"),lwd=2, col="tomato",xlim=c(0,1),ylim=c(0,50))
+    par(new=T)
+    plot(performance(pre.K, "lift", "rpp"),lwd=2, col="goldenrod1",xlim=c(0,1),ylim=c(0,50))
+    par(new=T)
+    plot(performance(pre.S, "lift", "rpp"),lwd=2, col="darkcyan",
+         main = "Lift Curve of Model",xlim=c(0,1),ylim=c(0,50))
+    abline(h=1, col="black", lwd=2)
+    legend("topright",legend=c("rpart", "kNN", "SVM", "Random"),
+           col=c("tomato", "goldenrod1", "darkcyan","black"),lwd=2, cex=0.7)
+    cat("\n","\nPrecision and recall of Tree: \n")
+    cat("Precision = ",T.Answer[1]," , Recall = ",T.Answer[2])
+    cat("\n","\nPrecision and recall of kNN: \n")
+    cat("Precision = ",K.Answer[1]," , Recall = ",K.Answer[2])
+    cat("\n","\nPrecision and recall of SVM: \n")
+    cat("Precision = ",S.Answer[1]," , Recall = ",S.Answer[2],"\n")
+  }
+}
+```
+兩部份arguments都要求輸入目標變數之名稱(response)和感興趣類別(Positive)。\
+\
+以執行下列一行指令為例，可得結果報表及結果圖如下:
+```{r}
+Generic_bin_plots(hacide.train, hacide.test, "cls", "1")
+
+```
+另外值得一提的是，之所以將函數分成兩種除了外觀稍微簡潔以外，使用table函數計算可能會在某種方法全數分為同一類的情況時不能分辨偽陰或者偽陽。如果預測值只有一種，table函數無法製作皆為0的一列或一行。

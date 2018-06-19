@@ -1,0 +1,30 @@
+---
+title: "Assignment 2 - Data Frame Manipulations"
+author: "Matthew Yu"
+date: "2017/2"
+output:
+  pdf_document:
+    includes:
+      in_header: header.tex
+    keep_tex: yes
+    latex_engine: xelatex
+  html_document: default
+---
+
+
+### 使用「ggplot2」套件所提供的「econmics」資料庫，繪製2000年（含）以後每年逐月的人口成長圖。也就是必須產生一個只包含2000年以後資料的資料庫（econ2000）。
+
+調整子資料集並依年份作圖
+```{r, warning=FALSE}
+library(ggplot2)
+library(lubridate)
+colnames(economics)
+econ2000 <- economics
+econ2000$year <- year(econ2000$date)
+econ2000$month <- month(econ2000$date, label=TRUE)
+econ2000 <- econ2000[econ2000$year>=2000,]
+
+k <- ggplot(data=econ2000, aes(x=month, y=pop))
+(k <- k+geom_line(aes(color=factor(year), group=year)))
+```
+
