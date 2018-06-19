@@ -1,0 +1,37 @@
+---
+title: "Assignment 1 - Plotting Basics"
+author: "Matthew Yu"
+date: "2017/2"
+output:
+  pdf_document:
+    includes:
+      in_header: header.tex
+    keep_tex: yes
+    latex_engine: xelatex
+  html_document: default
+---
+
+
+### 使用R語言內建的「islands」資料庫，繪製每個島嶼面積的圓餅圖（pie）。請將面積過小的島嶼全部歸為「Others」，以使得所繪製的圓餅圖不會發生標籤重疊不易閱讀的情形。
+
+讀入資料並先觀察初始情形
+```{r}
+pie(islands)
+summary(islands)
+head(islands, 10)
+names(islands)
+sort(islands)
+```
+
+為確保歸類為`Others`的總值為最小，將前八名隔開
+```{r}
+islands.trimmed <- islands[islands>sort(islands,decreasing=T)[8]]
+#To make sure that the value of others doesn't exceed any of the rest
+islands.trimmed[length(islands.trimmed)+1] <-sum(islands[islands<sort(islands,decreasing=T)[8]])
+names(islands.trimmed)[length(islands.trimmed)] <- "others"
+islands.trimmed
+
+pie(islands.trimmed)
+```
+
+經修正後視覺化效果變佳
